@@ -29,13 +29,14 @@ class Loader:
         records = []
         for portfolio_key in portfolio_keys:
             portfolio_key = list(portfolio_key)
-            portfolio_returns = self.source.fetch_returns(portfolio_key)
-            returns: Dict[str, List] = {
-                "LONG": [r[5] for r in portfolio_returns if r[5] is not None],
-                "SHORT": [r[6] for r in portfolio_returns if r[6] is not None],
-                "NEUTRAL": [r[7] for r in portfolio_returns if r[7] is not None]
+            raw_records = self.source.fetch_returns(portfolio_key)
+            portfolio_returns: Dict[str, List] = {
+                "LONG": [({'LONG': r[9]['LONG'], 'SHORT': None}, r[5]) for r in raw_records],
+                "SHORT": [({'LONG': None, 'SHORT': r[9]['SHORT']}, r[6]) for r in raw_records],
+                "NEUTRAL": [(r[9], r[7]) for r in raw_records]
             }
-            for k, v in returns.items():
+
+            for k, v in portfolio_returns.items():
                 key = portfolio_key + [k]
                 record = model.PortfolioMetrics.build_record(key, v).as_tuple()
                 records.append(record)

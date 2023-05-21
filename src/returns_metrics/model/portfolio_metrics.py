@@ -54,7 +54,10 @@ class PortfolioMetrics(Modeling):
             self.top,
             self.side,
             self.metrics.cumulative_rtn,
+            self.metrics.cumulative_net_rtn,
             self.metrics.ann_rtn,
-            self.metrics.ann_volatility,
+            self.metrics.ann_vol,
+            self.metrics.sharpe,
             self.metrics.ann_sharpe,
+            self.metrics.max_drawdown
         )

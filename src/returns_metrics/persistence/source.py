@@ -59,6 +59,7 @@ class Source:
             "AND timeframe = %s "
             "AND mkt_cap_class = %s "
             "AND top = %s "
+            "AND datadate <= '2019-12-31' "
             "ORDER BY datadate; "
         )
 
