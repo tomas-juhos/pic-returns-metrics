@@ -15,7 +15,6 @@ class Queries:
         "       cumulative_net_rtn, "
         "       ann_rtn, "
         "       ann_vol, "
-        "       sharpe, "
         "       ann_sharpe, "
         "       max_drawdown "
         ") VALUES %s "
@@ -30,7 +29,6 @@ class Queries:
         "       cumulative_net_rtn=EXCLUDED.cumulative_net_rtn, "
         "       ann_rtn=EXCLUDED.ann_rtn, "
         "       ann_vol=EXCLUDED.ann_vol, "
-        "       sharpe=EXCLUDED.sharpe,"
         "       ann_sharpe=EXCLUDED.ann_sharpe, "
         "       max_drawdown=EXCLUDED.max_drawdown; "
     )

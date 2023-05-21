@@ -10,7 +10,6 @@ CREATE TABLE portfolio_metrics
     cumulative_net_rtn          DECIMAL(10,4),
     ann_rtn                     DECIMAL(10,4),
     ann_vol                     DECIMAL(10,4),
-    sharpe                      DECIMAL(10,4),
     ann_sharpe                  DECIMAL(10,4),
     max_drawdown                DECIMAL(10,4),
 

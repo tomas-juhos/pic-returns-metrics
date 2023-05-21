@@ -126,7 +126,6 @@ class Metrics:
             self.cumulative_net_rtn,
             self.ann_rtn,
             self.ann_vol,
-            self.sharpe,
             self.ann_sharpe,
             self.max_drawdown
         )
