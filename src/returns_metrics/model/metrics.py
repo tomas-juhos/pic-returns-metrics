@@ -1,5 +1,5 @@
 from math import sqrt
-from typing import List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -7,16 +7,18 @@ import numpy as np
 class Metrics:
     # PER YEAR
     TIME_PERIODS = {
-        'DAILY': 252,
-        'WEEKLY': 52,
-        'MONTHLY': 12,
+        "DAILY": 252,
+        "WEEKLY": 52,
+        "MONTHLY": 12,
     }
 
-    def __init__(self, portfolio_returns: Tuple[set, List], timeframe: str):
+    def __init__(self, portfolio_returns: List[Tuple[Dict, float]], timeframe: str):
         self.periods_per_year = self.TIME_PERIODS[timeframe]
 
         self.portfolio_returns = portfolio_returns
-        self.returns_list = np.array([r[1] for r in portfolio_returns if r[1] is not None])
+        self.returns_list = np.array(
+            [r[1] for r in portfolio_returns if r[1] is not None]
+        )
         self.net_returns_list = self.net_returns()
 
         self.cumulative_rtn = self.cumulative_returns(self.returns_list)[-1]
@@ -40,14 +42,14 @@ class Metrics:
         return res
 
     def net_returns(self):
-        fee = 0.0005  # 5 basis pts fee
+        fee = 0.0015  # 15 basis pts fee
         prev_long = None
         prev_short = None
 
         res = []
         for portfolio_rtn in self.portfolio_returns:
-            long = portfolio_rtn[0]['LONG']
-            short = portfolio_rtn[0]['SHORT']
+            long = portfolio_rtn[0]["LONG"]
+            short = portfolio_rtn[0]["SHORT"]
             rtn = portfolio_rtn[1] if portfolio_rtn[1] else 0
 
             if not prev_long and long:
@@ -55,7 +57,9 @@ class Metrics:
             elif prev_long and not long:
                 turnover_long = 1
             elif prev_long and long:
-                turnover_long = len(set(long).symmetric_difference(prev_long)) / len(long)
+                turnover_long = len(set(long).symmetric_difference(prev_long)) / len(
+                    long
+                )
             else:
                 turnover_long = 0
 
@@ -64,11 +68,13 @@ class Metrics:
             elif prev_short and not short:
                 turnover_short = 1
             elif prev_short and short:
-                turnover_short = len(set(short).symmetric_difference(prev_short)) / len(short)
+                turnover_short = len(set(short).symmetric_difference(prev_short)) / len(
+                    short
+                )
             else:
                 turnover_short = 0
 
-            rtn = float(rtn) - ((turnover_long+turnover_short) * fee)
+            rtn = float(rtn) - ((turnover_long + turnover_short) * fee)
 
             res.append(rtn)
 
@@ -127,6 +133,5 @@ class Metrics:
             self.ann_rtn,
             self.ann_vol,
             self.ann_sharpe,
-            self.max_drawdown
+            self.max_drawdown,
         )
-

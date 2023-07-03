@@ -1,7 +1,9 @@
+from datetime import datetime
+from decimal import Decimal
 import logging
 from sys import stdout
 import os
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple
 
 import returns_metrics.model as model
 import returns_metrics.queries as queries
@@ -17,23 +19,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class Loader:
+class FactorPortfolioLoader:
     """Loader class for portfolio metrics."""
 
     def __init__(self) -> None:
         self.source = source.Source(os.environ.get("SOURCE"))
         self.target = target.Target(os.environ.get("TARGET"))
 
-    def run(self):
-        portfolio_keys = self.source.fetch_keys()
+    def run_factor_portfolios(self):
+        portfolio_keys = self.source.fetch_factor_keys()
         records = []
         for portfolio_key in portfolio_keys:
             portfolio_key = list(portfolio_key)
-            raw_records = self.source.fetch_returns(portfolio_key)
-            portfolio_returns: Dict[str, List] = {
-                "LONG": [({'LONG': r[9]['LONG'], 'SHORT': None}, r[5]) for r in raw_records],
-                "SHORT": [({'LONG': None, 'SHORT': r[9]['SHORT']}, r[6]) for r in raw_records],
-                "NEUTRAL": [(r[9], r[7]) for r in raw_records]
+            raw_records = self.source.fetch_factor_returns(portfolio_key)
+            portfolio_returns: Dict[str, List[Tuple[Dict, float]]] = {
+                "LONG": [
+                    ({"LONG": r[9]["LONG"], "SHORT": None}, r[5]) for r in raw_records
+                ],
+                "SHORT": [
+                    ({"LONG": None, "SHORT": r[9]["SHORT"]}, r[6]) for r in raw_records
+                ],
+                "NEUTRAL": [(r[9], r[7]) for r in raw_records],
             }
 
             for k, v in portfolio_returns.items():
@@ -45,5 +51,76 @@ class Loader:
         self.target.commit_transaction()
 
 
-loader = Loader()
-loader.run()
+class RegressionPortfolioLoader:
+    """Loader class for portfolio metrics."""
+    MODEL_TYPES = ["regression", "gbm"]
+    VALIDATION_CRITERIA = ["mse", "dir_acc", "rtn_bottom", "rtn_weighted"]
+    RTN_TYPES = ["bottom", "weighted", "random", "benchmark"]
+
+    def __init__(self) -> None:
+        self.source = source.Source(os.environ.get("SOURCE"))
+        self.target = target.Target(os.environ.get("TARGET"))
+
+    def run_all(self):
+        for model_type in self.MODEL_TYPES:
+            self.run_regression_portfolios(model_type)
+
+    def run_regression_portfolios(self, model_type):
+        res = []
+        for val_criterion in self.VALIDATION_CRITERIA:
+            for rtn_type in self.RTN_TYPES:
+                raw_records = self.source.fetch_model_returns(model_type, val_criterion)
+                if model_type == "regression":
+                    records = [model.RegressionMetrics.build_record(r) for r in raw_records]
+                elif model_type == "gbm":
+                    records = [model.GBMMetrics.build_record(r) for r in raw_records]
+                else:
+                    logger.warning("No valid model type provided (regression/gbm).")
+                    return
+                if rtn_type == "benchmark":
+                    raw_gvkeys = self.source.fetch_chosen_gvkeys(
+                        model_type, val_criterion
+                    )
+                else:
+                    raw_gvkeys = self.source.fetch_chosen_gvkeys(
+                        model_type, val_criterion, rtn_type
+                    )
+
+                gvkeys_dict = self.group_gvkeys_by_date(raw_gvkeys)
+                key = [model_type, val_criterion, rtn_type, "short"]
+                portfolio_rtn: List[Tuple[Dict, float]] = []
+                for r in records:
+                    portfolio = self.get_porfolio_gvkeys(r.testing_start, gvkeys_dict)
+                    # GVKEYS, RETURN
+                    # SYMMETRIC RETURNS BECAUSE ALWAYS SHORT
+                    portfolio_rtn.append((portfolio, -float(getattr(r, f"rtn_{rtn_type}"))))
+
+                res.append(
+                        model.RegressionPortfolioMetrics.build_record(key, portfolio_rtn).as_tuple(),
+                )
+
+        self.target.execute(queries.RegressionPortfolioMetricsQueries.UPSERT, res)
+        self.target.commit_transaction()
+
+    @staticmethod
+    def get_porfolio_gvkeys(d, gvkeys_dict):
+        if d in gvkeys_dict.keys():
+            res = {"LONG": [], "SHORT": gvkeys_dict[d]}
+        else:
+            res = {"LONG": [], "SHORT": []}
+        return res
+
+    @staticmethod
+    def group_gvkeys_by_date(raw_keys: List[Tuple[datetime, int]]):
+        gvkeys_dict = {}
+        for k in raw_keys:
+            if k[0].date() in gvkeys_dict.keys():
+                gvkeys_dict[k[0].date()].append(k[1])
+            else:
+                gvkeys_dict[k[0].date()] = [k[1]]
+        return gvkeys_dict
+
+
+loader = RegressionPortfolioLoader()
+loader.run_regression_portfolios(model_type="gbm")
+loader.run_all()

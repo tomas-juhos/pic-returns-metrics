@@ -33,16 +33,19 @@ class Source:
         """Disconnect from database."""
         self._connection.close()
 
-    def fetch_keys(self):
+    def fetch_factor_keys(self):
         """Fetches U.S. gvkeys."""
         cursor = self.cursor
-        query = "SELECT DISTINCT factor, timeframe, mkt_cap_class, top " "FROM factor_returns; "
+        query = (
+            "SELECT DISTINCT factor, timeframe, mkt_cap_class, top "
+            "FROM factor_returns; "
+        )
         cursor.execute(query)
         keys = cursor.fetchall()
 
         return keys if keys else None
 
-    def fetch_returns(self, key) -> List[Tuple]:
+    def fetch_factor_returns(self, key) -> List[Tuple]:
         """Fetch records with the provided keys.
 
         Args:
@@ -64,6 +67,62 @@ class Source:
         )
 
         cursor.execute(query, (key[0], key[1], key[2], key[3]))
+        res = cursor.fetchall()
+
+        return res if res else None
+
+    def fetch_model_returns(self, model, val_criterion) -> List[Tuple]:
+        """Fetch records with the provided keys.
+
+        Args:
+            model: model type.
+            val_criterion: key of portfolio.
+
+        Returns:
+            List of records with matching keys.
+        """
+        cursor = self.cursor
+        query = (
+            "SELECT * "
+            "FROM {model}_metrics "
+            "WHERE val_criterion = %s "
+            "ORDER BY testing_start; "
+        ).format(model=model)
+
+        cursor.execute(query, (val_criterion,))
+        res = cursor.fetchall()
+
+        return res if res else None
+
+    def fetch_chosen_gvkeys(self, model, val_criterion, rtn_type=None) -> List[Tuple]:
+        """Fetch records with the provided keys.
+
+        Args:
+            model: model type.
+            val_criterion: key of portfolio.
+            rtn_type: return type.
+
+        Returns:
+            List of records with matching keys.
+        """
+        cursor = self.cursor
+        if rtn_type:
+            query = (
+                "SELECT datadate, gvkey "
+                "FROM {model}_predictions "
+                "WHERE val_criterion = %s "
+                "AND chosen_{rtn_type} = true "
+                "ORDER BY datadate; "
+            ).format(model=model, rtn_type=rtn_type)
+        else:
+            query = (
+                "SELECT datadate, gvkey "
+                "FROM {model}_predictions "
+                "WHERE val_criterion = %s "
+                "ORDER BY datadate; "
+            ).format(model=model)
+
+        cursor.execute(query, (val_criterion,))
         res = cursor.fetchall()
 
         return res if res else None

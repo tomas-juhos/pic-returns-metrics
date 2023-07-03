@@ -47,4 +47,3 @@ class Target:
         """
         cursor = self.cursor
         execute_values(cur=cursor, sql=query, argslist=records)
-
