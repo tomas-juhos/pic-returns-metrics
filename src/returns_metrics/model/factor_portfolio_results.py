@@ -1,5 +1,6 @@
 """Returns model."""
 
+from decimal import Decimal
 import logging
 from typing import Dict, List, Optional, Tuple
 
@@ -9,14 +10,13 @@ from returns_metrics.model.base import Modeling
 logger = logging.getLogger(__name__)
 
 
-class RegressionPortfolioMetrics(Modeling):
+class FactorPortfolioResults(Modeling):
     """Returns record object class."""
 
-    TIMEFRAME = "DAILY"
-
-    model_type: str
-    val_criterion: str
-    rtn_type: str
+    factor: str
+    timeframe: str
+    mkt_cap_class: str
+    top: int
     side: str
 
     metrics: Optional[Metrics] = None
@@ -24,7 +24,7 @@ class RegressionPortfolioMetrics(Modeling):
     @classmethod
     def build_record(
         cls, key, returns: List[Tuple[Dict, float]]
-    ) -> "RegressionPortfolioMetrics":
+    ) -> "FactorPortfolioResults":
         """Builds Returns record object.
 
         Args:
@@ -35,11 +35,12 @@ class RegressionPortfolioMetrics(Modeling):
         """
         res = cls()
 
-        res.model_type = key[0]
-        res.val_criterion = key[1]
-        res.rtn_type = key[2]
-        res.side = key[3]
-        res.metrics = Metrics(returns, cls.TIMEFRAME)
+        res.factor = key[0]
+        res.timeframe = key[1]
+        res.mkt_cap_class = key[2]
+        res.top = key[3]
+        res.side = key[4]
+        res.metrics = Metrics(returns, res.timeframe)
 
         return res
 
@@ -50,9 +51,10 @@ class RegressionPortfolioMetrics(Modeling):
             Tuple with object attributes.
         """
         return (
-            self.model_type,
-            self.val_criterion,
-            self.rtn_type,
+            self.factor,
+            self.timeframe,
+            self.mkt_cap_class,
+            self.top,
             self.side,
             self.metrics.cumulative_rtn,
             self.metrics.cumulative_net_rtn,

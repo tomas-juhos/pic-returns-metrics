@@ -71,12 +71,13 @@ class Source:
 
         return res if res else None
 
-    def fetch_model_returns(self, model, val_criterion) -> List[Tuple]:
+    def fetch_model_returns(self, model, universe_constr, val_criterion) -> List[Tuple]:
         """Fetch records with the provided keys.
 
         Args:
             model: model type.
-            val_criterion: key of portfolio.
+            universe_constr: universe constraint.
+            val_criterion: validation criterion.
 
         Returns:
             List of records with matching keys.
@@ -85,21 +86,25 @@ class Source:
         query = (
             "SELECT * "
             "FROM {model}_metrics "
-            "WHERE val_criterion = %s "
+            "WHERE universe_constr = %s "
+            "AND val_criterion = %s "
             "ORDER BY testing_start; "
         ).format(model=model)
 
-        cursor.execute(query, (val_criterion,))
+        cursor.execute(query, (universe_constr, val_criterion))
         res = cursor.fetchall()
 
         return res if res else None
 
-    def fetch_chosen_gvkeys(self, model, val_criterion, rtn_type=None) -> List[Tuple]:
+    def fetch_chosen_gvkeys(
+        self, model, universe_constr, val_criterion, rtn_type=None
+    ) -> List[Tuple]:
         """Fetch records with the provided keys.
 
         Args:
             model: model type.
-            val_criterion: key of portfolio.
+            universe_constr: universe constraint.
+            val_criterion: validation criterion.
             rtn_type: return type.
 
         Returns:
@@ -110,7 +115,8 @@ class Source:
             query = (
                 "SELECT datadate, gvkey "
                 "FROM {model}_predictions "
-                "WHERE val_criterion = %s "
+                "WHERE universe_constr = %s "
+                "AND val_criterion = %s "
                 "AND chosen_{rtn_type} = true "
                 "ORDER BY datadate; "
             ).format(model=model, rtn_type=rtn_type)
@@ -118,11 +124,12 @@ class Source:
             query = (
                 "SELECT datadate, gvkey "
                 "FROM {model}_predictions "
-                "WHERE val_criterion = %s "
+                "WHERE universe_constr = %s "
+                "AND val_criterion = %s "
                 "ORDER BY datadate; "
             ).format(model=model)
 
-        cursor.execute(query, (val_criterion,))
+        cursor.execute(query, (universe_constr, val_criterion))
         res = cursor.fetchall()
 
         return res if res else None

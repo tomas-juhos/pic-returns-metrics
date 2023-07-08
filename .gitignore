@@ -146,3 +146,6 @@ cython_debug/
 *.env
 *.zip
 .netrc
+
+*.csv
+.csv

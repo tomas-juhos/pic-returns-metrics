@@ -2,13 +2,14 @@
 
 
 class Queries:
-    """Regression Portfolio Metrics queries class."""
+    """Portfolio Metrics queries class."""
 
     UPSERT = (
-        "INSERT INTO regression_portfolio_metrics ("
-        "       model_type, "
-        "       val_criterion, "
-        "       rtn_type, "
+        "INSERT INTO factor_portfolio_results ("
+        "       factor, "
+        "       timeframe, "
+        "       mkt_cap_class, "
+        "       top, "
         "       side, "
         "       cumulative_rtn, "
         "       cumulative_net_rtn, "
@@ -17,11 +18,12 @@ class Queries:
         "       ann_sharpe, "
         "       max_drawdown "
         ") VALUES %s "
-        "ON CONFLICT (model_type, val_criterion, rtn_type, side) DO "
+        "ON CONFLICT (factor, timeframe, mkt_cap_class, top, side) DO "
         "UPDATE SET "
-        "       model_type=EXCLUDED.model_type, "
-        "       val_criterion=EXCLUDED.val_criterion, "
-        "       rtn_type=EXCLUDED.rtn_type, "
+        "       factor=EXCLUDED.factor, "
+        "       timeframe=EXCLUDED.timeframe, "
+        "       mkt_cap_class=EXCLUDED.mkt_cap_class, "
+        "       top=EXCLUDED.top, "
         "       side=EXCLUDED.side, "
         "       cumulative_rtn=EXCLUDED.cumulative_rtn, "
         "       cumulative_net_rtn=EXCLUDED.cumulative_net_rtn, "

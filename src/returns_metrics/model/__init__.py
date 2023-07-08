@@ -2,15 +2,15 @@
 
 from .gbm_metrics import GBMMetrics
 from .metrics import Metrics
-from .portfolio_metrics import PortfolioMetrics
-from .regression_portfolio_metrics import RegressionPortfolioMetrics
+from .factor_portfolio_results import FactorPortfolioResults
+from .regression_portfolio_results import RegressionPortfolioResults
 from .regression_metrics import RegressionMetrics
 
 
 __all__ = [
     "GBMMetrics",
     "Metrics",
-    "PortfolioMetrics",
-    "RegressionPortfolioMetrics",
+    "FactorPortfolioResults",
+    "RegressionPortfolioResults",
     "RegressionMetrics",
 ]

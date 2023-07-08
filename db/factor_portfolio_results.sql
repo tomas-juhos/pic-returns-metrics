@@ -1,4 +1,4 @@
-CREATE TABLE portfolio_metrics
+CREATE TABLE factor_portfolio_results
 (
     factor                      VARCHAR(100),
     timeframe                   VARCHAR(20),

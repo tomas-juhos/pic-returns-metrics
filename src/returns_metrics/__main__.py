@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 import logging
 from sys import stdout
 import os
@@ -10,7 +9,7 @@ import returns_metrics.queries as queries
 from returns_metrics.persistence import source, target
 
 logging.basicConfig(
-    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+    level="INFO",
     format="%(asctime)s %(levelname)s [%(filename)s:%(lineno)d]: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     stream=stdout,
@@ -26,7 +25,7 @@ class FactorPortfolioLoader:
         self.source = source.Source(os.environ.get("SOURCE"))
         self.target = target.Target(os.environ.get("TARGET"))
 
-    def run_factor_portfolios(self):
+    def run(self):
         portfolio_keys = self.source.fetch_factor_keys()
         records = []
         for portfolio_key in portfolio_keys:
@@ -44,7 +43,7 @@ class FactorPortfolioLoader:
 
             for k, v in portfolio_returns.items():
                 key = portfolio_key + [k]
-                record = model.PortfolioMetrics.build_record(key, v).as_tuple()
+                record = model.FactorPortfolioResults.build_record(key, v).as_tuple()
                 records.append(record)
 
         self.target.execute(queries.PortfolioMetricsQueries.UPSERT, records)
@@ -53,9 +52,11 @@ class FactorPortfolioLoader:
 
 class RegressionPortfolioLoader:
     """Loader class for portfolio metrics."""
-    MODEL_TYPES = ["regression", "gbm"]
-    VALIDATION_CRITERIA = ["mse", "dir_acc", "rtn_bottom", "rtn_weighted"]
-    RTN_TYPES = ["bottom", "weighted", "random", "benchmark"]
+
+    MODEL_TYPES = ["REGRESSION", "GBM"]
+    UNIVERSE_CONSTRAINTS = ["LOAN_RATE_AVG", "SHORT_INTEREST"]
+    VALIDATION_CRITERIA = ["MSE", "DIR_ACC", "RTN_BOTTOM", "RTN_WEIGHTED"]
+    RTN_TYPES = ["BOTTOM", "WEIGHTED", "RANDOM", "BENCHMARK"]
 
     def __init__(self) -> None:
         self.source = source.Source(os.environ.get("SOURCE"))
@@ -63,44 +64,71 @@ class RegressionPortfolioLoader:
 
     def run_all(self):
         for model_type in self.MODEL_TYPES:
-            self.run_regression_portfolios(model_type)
+            self.run(model_type)
 
-    def run_regression_portfolios(self, model_type):
+    def run(self, model_type):
         res = []
-        for val_criterion in self.VALIDATION_CRITERIA:
-            for rtn_type in self.RTN_TYPES:
-                raw_records = self.source.fetch_model_returns(model_type, val_criterion)
-                if model_type == "regression":
-                    records = [model.RegressionMetrics.build_record(r) for r in raw_records]
-                elif model_type == "gbm":
-                    records = [model.GBMMetrics.build_record(r) for r in raw_records]
-                else:
-                    logger.warning("No valid model type provided (regression/gbm).")
-                    return
-                if rtn_type == "benchmark":
-                    raw_gvkeys = self.source.fetch_chosen_gvkeys(
-                        model_type, val_criterion
+        for universe_constr in self.UNIVERSE_CONSTRAINTS:
+            for val_criterion in self.VALIDATION_CRITERIA:
+                for rtn_type in self.RTN_TYPES:
+                    raw_records = self.source.fetch_model_returns(
+                        model=model_type.lower(),
+                        universe_constr=universe_constr.upper(),
+                        val_criterion=val_criterion.upper(),
                     )
-                else:
-                    raw_gvkeys = self.source.fetch_chosen_gvkeys(
-                        model_type, val_criterion, rtn_type
+                    if not raw_records:
+                        logger.info(f"No available records for {universe_constr}|{val_criterion}|{rtn_type}")
+                    if model_type == "REGRESSION":
+                        records = [
+                            model.RegressionMetrics.build_record(r) for r in raw_records
+                        ]
+                    elif model_type == "GBM":
+                        records = [
+                            model.GBMMetrics.build_record(r) for r in raw_records
+                        ]
+                    else:
+                        logger.warning("No valid model type provided (regression/gbm).")
+                        return
+                    if rtn_type == "benchmark":
+                        raw_gvkeys = self.source.fetch_chosen_gvkeys(
+                            model=model_type.lower(),
+                            universe_constr=universe_constr.upper(),
+                            val_criterion=val_criterion.upper(),
+                        )
+                    else:
+                        raw_gvkeys = self.source.fetch_chosen_gvkeys(
+                            model=model_type.lower(),
+                            universe_constr=universe_constr.upper(),
+                            val_criterion=val_criterion.upper(),
+                        )
+
+                    gvkeys_dict = self.group_gvkeys_by_date(raw_gvkeys)
+                    key = [
+                        universe_constr.upper(),
+                        model_type.upper(),
+                        val_criterion.upper(),
+                        rtn_type.upper(),
+                        "SHORT",
+                    ]
+                    portfolio_rtn: List[Tuple[Dict, float]] = []
+                    for r in records:
+                        portfolio = self.get_porfolio_gvkeys(
+                            r.testing_start, gvkeys_dict
+                        )
+                        # GVKEYS, RETURN
+                        # SYMMETRIC RETURNS BECAUSE ALWAYS SHORT
+                        portfolio_rtn.append(
+                            (portfolio, -float(getattr(r, f"rtn_{rtn_type.lower()}")))
+                        )
+
+                    res.append(
+                        model.RegressionPortfolioResults.build_record(
+                            key, portfolio_rtn
+                        ).as_tuple(),
                     )
 
-                gvkeys_dict = self.group_gvkeys_by_date(raw_gvkeys)
-                key = [model_type, val_criterion, rtn_type, "short"]
-                portfolio_rtn: List[Tuple[Dict, float]] = []
-                for r in records:
-                    portfolio = self.get_porfolio_gvkeys(r.testing_start, gvkeys_dict)
-                    # GVKEYS, RETURN
-                    # SYMMETRIC RETURNS BECAUSE ALWAYS SHORT
-                    portfolio_rtn.append((portfolio, -float(getattr(r, f"rtn_{rtn_type}"))))
-
-                res.append(
-                        model.RegressionPortfolioMetrics.build_record(key, portfolio_rtn).as_tuple(),
-                )
-
-        self.target.execute(queries.RegressionPortfolioMetricsQueries.UPSERT, res)
-        self.target.commit_transaction()
+            self.target.execute(queries.RegressionPortfolioMetricsQueries.UPSERT, res)
+            self.target.commit_transaction()
 
     @staticmethod
     def get_porfolio_gvkeys(d, gvkeys_dict):
@@ -121,6 +149,19 @@ class RegressionPortfolioLoader:
         return gvkeys_dict
 
 
-loader = RegressionPortfolioLoader()
-loader.run_regression_portfolios(model_type="gbm")
-loader.run_all()
+class PortfolioResultsLoader:
+    factor_portofolio_loader = FactorPortfolioLoader()
+    regression_portfolio_loader = RegressionPortfolioLoader()
+
+    def factor(self):
+        self.factor_portofolio_loader.run()
+
+    def regression(self, model_type):
+        self.regression_portfolio_loader.run(model_type)
+
+    def all_regression(self):
+        self.regression_portfolio_loader.run_all()
+
+
+portfolio_results = PortfolioResultsLoader()
+portfolio_results.regression(model_type="GBM")

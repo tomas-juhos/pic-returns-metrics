@@ -1,5 +1,6 @@
-CREATE TABLE regression_portfolio_metrics
+CREATE TABLE regression_portfolio_results
 (
+    universe_constr             VARCHAR(50),
     model_type                  VARCHAR(20),
     val_criterion               VARCHAR(20),
     rtn_type                    VARCHAR(20),
@@ -12,5 +13,5 @@ CREATE TABLE regression_portfolio_metrics
     ann_sharpe                  DECIMAL(10,4),
     max_drawdown                DECIMAL(10,4),
 
-    PRIMARY KEY (model_type, val_criterion, rtn_type, side)
+    PRIMARY KEY (universe_constr, model_type, val_criterion, rtn_type, side)
 );

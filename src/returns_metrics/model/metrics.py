@@ -58,7 +58,7 @@ class Metrics:
                 turnover_long = 1
             elif prev_long and long:
                 turnover_long = len(set(long).symmetric_difference(prev_long)) / len(
-                    long
+                    prev_long + long
                 )
             else:
                 turnover_long = 0
@@ -69,7 +69,7 @@ class Metrics:
                 turnover_short = 1
             elif prev_short and short:
                 turnover_short = len(set(short).symmetric_difference(prev_short)) / len(
-                    short
+                    prev_short + short
                 )
             else:
                 turnover_short = 0

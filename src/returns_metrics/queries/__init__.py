@@ -1,7 +1,7 @@
 """Queries implementation."""
 
-from .portfolio_metrics import Queries as PortfolioMetricsQueries
-from .regression_portfolio_metrics import Queries as RegressionPortfolioMetricsQueries
+from .factor_portfolio_results import Queries as PortfolioMetricsQueries
+from .regression_portfolio_results import Queries as RegressionPortfolioMetricsQueries
 
 
 __all__ = ["PortfolioMetricsQueries", "RegressionPortfolioMetricsQueries"]
