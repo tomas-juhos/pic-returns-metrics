@@ -147,5 +147,5 @@ cython_debug/
 *.zip
 .netrc
 
-*.csv
-.csv
+*.png
+.png

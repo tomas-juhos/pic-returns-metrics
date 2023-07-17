@@ -21,8 +21,11 @@ class Metrics:
         )
         self.net_returns_list = self.net_returns()
 
-        self.cumulative_rtn = self.cumulative_returns(self.returns_list)[-1]
-        self.cumulative_net_rtn = self.cumulative_returns(self.net_returns_list)[-1]
+        self.cumulative_returns_list = self.cumulative_returns(self.returns_list)
+        self.cumulative_net_returns_list = self.cumulative_returns(self.net_returns_list)
+
+        self.cumulative_rtn = self.cumulative_returns_list[-1]
+        self.cumulative_net_rtn = self.cumulative_net_returns_list[-1]
 
         self.ann_rtn = self.annualized_return()
         self.ann_vol = self.annualized_volatility()

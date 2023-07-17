@@ -8,6 +8,8 @@ import returns_metrics.model as model
 import returns_metrics.queries as queries
 from returns_metrics.persistence import source, target
 
+import pandas as pd
+
 logging.basicConfig(
     level="INFO",
     format="%(asctime)s %(levelname)s [%(filename)s:%(lineno)d]: %(message)s",
@@ -66,7 +68,7 @@ class RegressionPortfolioLoader:
         for model_type in self.MODEL_TYPES:
             self.run(model_type)
 
-    def run(self, model_type):
+    def run(self, model_type, save_best_strats_csv=False):
         res = []
         for universe_constr in self.UNIVERSE_CONSTRAINTS:
             for val_criterion in self.VALIDATION_CRITERIA:
@@ -120,15 +122,25 @@ class RegressionPortfolioLoader:
                         portfolio_rtn.append(
                             (portfolio, -float(getattr(r, f"rtn_{rtn_type.lower()}")))
                         )
-
-                    res.append(
-                        model.RegressionPortfolioResults.build_record(
+                    record = model.RegressionPortfolioResults.build_record(
                             key, portfolio_rtn
-                        ).as_tuple(),
-                    )
+                        )
+
+                    if save_best_strats_csv:
+                        self.save_best_strats_data(key, record)
+
+                    res.append(record.as_tuple())
 
             self.target.execute(queries.RegressionPortfolioMetricsQueries.UPSERT, res)
             self.target.commit_transaction()
+
+    @staticmethod
+    def save_best_strats_data(key, record):
+        # SAVES CSV WITH THE BEST STRATEGIES BOTTOM AND BENCHMARK NET RETURN
+        if key[0] == 'SHORT_INTEREST' and key[2] == 'DIR_ACC' and key[3] in ['BOTTOM', 'BENCHMARK']:
+            net_rtn = record.metrics.net_returns_list
+            net_rtn_df = pd.DataFrame(net_rtn, columns=['Net_Rtn'])
+            net_rtn_df.to_csv(f'{key[1].lower()}_{key[3].lower()}_net.csv', index=False)
 
     @staticmethod
     def get_porfolio_gvkeys(d, gvkeys_dict):
@@ -164,4 +176,4 @@ class PortfolioResultsLoader:
 
 
 portfolio_results = PortfolioResultsLoader()
-portfolio_results.regression(model_type="GBM")
+portfolio_results.all_regression()
